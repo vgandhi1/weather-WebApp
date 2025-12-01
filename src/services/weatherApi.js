@@ -61,7 +61,7 @@ export const getWeather = async (query) => {
     condition: data.weather[0].main,
     description: data.weather[0].description,
     humidity: data.main.humidity,
-    windSpeed: Math.round(data.wind.speed * 3.6),
+    windSpeed: data.wind.speed,
     icon: mapIcon(data.weather[0].icon)
   };
 };

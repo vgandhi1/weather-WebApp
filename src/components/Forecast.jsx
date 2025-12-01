@@ -23,7 +23,7 @@ const Forecast = ({ data, unit }) => {
             <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>5-Day Forecast</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {data.map((day, index) => {
-                    const displayTemp = unit === 'F' ? Math.round(day.temp * 9 / 5 + 32) : day.temp;
+                    const displayTemp = Math.round(unit === 'F' ? day.temp * 9 / 5 + 32 : day.temp);
                     return (
                         <div key={index} style={{
                             display: 'flex',

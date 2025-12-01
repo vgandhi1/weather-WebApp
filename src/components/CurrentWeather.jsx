@@ -3,25 +3,26 @@ import { Cloud, Sun, CloudRain, Wind, Droplets, CloudSun } from 'lucide-react';
 
 const WeatherIcon = ({ icon, size = 64 }) => {
     switch (icon) {
-        case 'sun':
-            return <Sun size={size} color="#FDB813" />;
-        case 'cloud':
-            return <Cloud size={size} color="#fff" />;
-        case 'cloud-rain':
-            return <CloudRain size={size} color="#fff" />;
-        case 'cloud-sun':
-            return <CloudSun size={size} color="#fff" />;
-        default:
-            return <Cloud size={size} color="#fff" />;
+        case 'sun': return <Sun size={size} color="#FDB813" />;
+        case 'cloud': return <Cloud size={size} color="#fff" />;
+        case 'cloud-rain': return <CloudRain size={size} color="#fff" />;
+        case 'cloud-sun': return <CloudSun size={size} color="#fff" />;
+        default: return <Cloud size={size} color="#fff" />;
     }
 };
 
 const CurrentWeather = ({ data, unit }) => {
     if (!data) return null;
 
-    const displayTemp = unit === 'F' ? Math.round(data.temp * 9 / 5 + 32) : data.temp;
+    // 1. Calculate Wind Speed based on Unit
+    // Note: This assumes data.windSpeed comes in as meters/second from the API
+    const windSpeed = unit === 'F' 
+        ? Math.round(data.windSpeed * 2.237) + ' mph'  
+        : Math.round(data.windSpeed * 3.6) + ' km/h';  
 
-    // Calculate local time based on timezone offset from API
+    // 2. Calculate Temp based on Unit
+    const displayTemp = Math.round(unit === 'F' ? (data.temp * 9 / 5 + 32) : data.temp);
+
     const getLocalTime = () => {
         const d = new Date();
         const utc = d.getTime() + d.getTimezoneOffset() * 60000;
@@ -78,7 +79,8 @@ const CurrentWeather = ({ data, unit }) => {
                         <Wind size={20} style={{ marginRight: '0.5rem' }} />
                         <span>Wind</span>
                     </div>
-                    <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{data.windSpeed} km/h</span>
+                    {/* CHANGED THIS LINE BELOW: Use the calculated variable */}
+                    <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{windSpeed}</span>
                 </div>
             </div>
         </div>

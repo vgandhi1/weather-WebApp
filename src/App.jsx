@@ -10,7 +10,7 @@ function App() {
   const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [unit, setUnit] = useState('C'); // 'C' or 'F'
+  const [unit, setUnit] = useState('F'); // 'F' or 'C'
 
   const fetchWeatherData = async (city) => {
     setLoading(true);
@@ -28,12 +28,12 @@ function App() {
   };
 
   const toggleUnit = () => {
-    setUnit(prev => prev === 'C' ? 'F' : 'C');
+    setUnit(prev => prev === 'F' ? 'C' : 'F');
   };
 
   useEffect(() => {
     // Load default city on mount
-    fetchWeatherData('Chicago, IL');
+    fetchWeatherData('Bloomington, Illinois, US');
   }, []);
 
   return (
