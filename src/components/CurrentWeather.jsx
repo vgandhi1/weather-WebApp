@@ -3,16 +3,31 @@ import { Cloud, Sun, CloudRain, Wind, Droplets, CloudSun } from 'lucide-react';
 
 const WeatherIcon = ({ icon, size = 64 }) => {
     switch (icon) {
-        case 'sun': return <Sun size={size} color="#FDB813" />;
-        case 'cloud': return <Cloud size={size} color="#fff" />;
-        case 'cloud-rain': return <CloudRain size={size} color="#fff" />;
-        case 'cloud-sun': return <CloudSun size={size} color="#fff" />;
-        default: return <Cloud size={size} color="#fff" />;
+        case 'sun':
+            return <Sun size={size} color="#FDB813" />;
+        case 'cloud':
+            return <Cloud size={size} color="#fff" />;
+        case 'cloud-rain':
+            return <CloudRain size={size} color="#fff" />;
+        case 'cloud-sun':
+            return <CloudSun size={size} color="#fff" />;
+        default:
+            return <Cloud size={size} color="#fff" />;
     }
 };
 
-const CurrentWeather = ({ data }) => {
+const CurrentWeather = ({ data, unit }) => {
     if (!data) return null;
+
+    const displayTemp = unit === 'F' ? Math.round(data.temp * 9 / 5 + 32) : data.temp;
+
+    // Calculate local time based on timezone offset from API
+    const getLocalTime = () => {
+        const d = new Date();
+        const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+        const cityTime = utc + data.timezone * 1000;
+        return new Date(cityTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     return (
         <div className="glass-panel" style={{
@@ -28,8 +43,15 @@ const CurrentWeather = ({ data }) => {
                 <WeatherIcon icon={data.icon} size={80} />
             </div>
 
+            <h2 style={{ fontSize: '2rem', marginBottom: '0.2rem' }}>
+                {data.name}{data.state ? `, ${data.state}` : ''}{data.country ? `, ${data.country}` : ''}
+            </h2>
+            <p style={{ fontSize: '1rem', opacity: 0.8, marginBottom: '0.5rem' }}>
+                Local Time: {getLocalTime()}
+            </p>
+
             <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '0.5rem' }} className="text-shadow">
-                {data.temp}°
+                {displayTemp}°{unit}
             </h1>
 
             <p style={{ fontSize: '1.5rem', marginBottom: '2rem', opacity: 0.9 }}>

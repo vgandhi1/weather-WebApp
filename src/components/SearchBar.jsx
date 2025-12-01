@@ -17,8 +17,7 @@ const SearchBar = ({ onSearch }) => {
             display: 'flex',
             alignItems: 'center',
             width: '100%',
-            maxWidth: '500px',
-            marginBottom: '2rem'
+            maxWidth: '500px'
         }}>
             <Search size={20} color="rgba(255,255,255,0.8)" style={{ marginRight: '1rem' }} />
             <input

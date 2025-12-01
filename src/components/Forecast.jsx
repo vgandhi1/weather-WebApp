@@ -11,7 +11,7 @@ const WeatherIcon = ({ icon, size = 24 }) => {
     }
 };
 
-const Forecast = ({ data }) => {
+const Forecast = ({ data, unit }) => {
     if (!data) return null;
 
     return (
@@ -22,22 +22,25 @@ const Forecast = ({ data }) => {
         }}>
             <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>5-Day Forecast</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {data.map((day, index) => (
-                    <div key={index} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.5rem 0',
-                        borderBottom: index < data.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none'
-                    }}>
-                        <span style={{ width: '50px', fontWeight: '500' }}>{day.day}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <WeatherIcon icon={day.icon} />
-                            <span style={{ opacity: 0.8 }}>{day.condition}</span>
+                {data.map((day, index) => {
+                    const displayTemp = unit === 'F' ? Math.round(day.temp * 9 / 5 + 32) : day.temp;
+                    return (
+                        <div key={index} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0.5rem 0',
+                            borderBottom: index < data.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none'
+                        }}>
+                            <span style={{ width: '50px', fontWeight: '500' }}>{day.day}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <WeatherIcon icon={day.icon} />
+                                <span style={{ opacity: 0.8 }}>{day.condition}</span>
+                            </div>
+                            <span style={{ fontWeight: 'bold' }}>{displayTemp}°{unit}</span>
                         </div>
-                        <span style={{ fontWeight: 'bold' }}>{day.temp}°</span>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
