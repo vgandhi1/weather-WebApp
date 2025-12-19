@@ -2,6 +2,8 @@
 
 A premium, responsive weather application built with React and Vite.
 
+**[Live Demo](https://vgandhi1.github.io/weather-WebApp/)**
+
 ## Features
 - **Real-time Weather**: Current conditions (Temperature, Humidity, Wind).
 - **Forecast**: 5-day weather outlook.
@@ -20,7 +22,15 @@ A premium, responsive weather application built with React and Vite.
    cd weather-app
    ```
 
-2. **Install dependencies**
+2. **Configure API Key**
+   - Sign up for a free account at [OpenWeatherMap](https://openweathermap.org/api).
+   - Generate an API Key.
+   - Create a `.env` file in the root directory:
+     ```env
+     VITE_OPENWEATHER_API_KEY=your_api_key_here
+     ```
+
+3. **Install dependencies**
    This command installs all required packages listed in `package.json`.
    ```bash
    npm install
