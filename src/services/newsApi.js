@@ -1,8 +1,7 @@
 const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 const BASE_URL = 'https://newsapi.org/v2/everything';
 
-// --- RICH MOCK DATA GENERATOR (For Production Demo) ---
-// This ensures the app looks "real" even when the API key is restricted (e.g. on GitHub Pages)
+// --- RICH MOCK DATA GENERATOR (For Production Demo Fallback) ---
 const generateMockNews = (city) => [
     {
         title: `${city} City Council announces new green initiative for downtown district`,
@@ -13,7 +12,7 @@ const generateMockNews = (city) => [
     {
         title: `Community spotlight: How ${city} volunteers are making a difference`,
         source: "Daily Herald",
-        pubDate: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+        pubDate: new Date(Date.now() - 3600000 * 2).toISOString(),
         link: `https://www.google.com/search?q=${city}+volunteers`
     },
     {
@@ -95,19 +94,34 @@ const generateMockAttractions = (city) => [
 ];
 
 const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
-    // If no key, fail fast to use fallback
-    if (!NEWS_API_KEY || NEWS_API_KEY.includes('your_api_key')) {
-        return null;
-    }
-
     try {
-        // pageSize: 10
-        const url = `${BASE_URL}?q=${encodeURIComponent(query)}&language=en&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
+        let url;
+
+        // --- ENVIRONMENT DETECTION ---
+        if (import.meta.env.DEV) {
+            // [LOCALHOST]: Direct call to NewsAPI (Allowed by Browser)
+            // Requires VITE_NEWS_API_KEY in .env
+            if (!NEWS_API_KEY || NEWS_API_KEY.includes('your_api_key')) return null;
+            url = `${BASE_URL}?q=${encodeURIComponent(query)}&language=en&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
+        } else {
+            // [PRODUCTION / CLOUDFLARE]: Call our own Proxy Function
+            // Browser -> /api/news -> Cloudflare -> NewsAPI
+            // No API Key needed here, it's stored safely on Cloudflare
+            url = `/api/news?q=${encodeURIComponent(query)}&sortBy=${sortBy}`;
+        }
+
         const response = await fetch(url);
 
         if (!response.ok) return null;
 
         const data = await response.json();
+
+        // Check for Proxy errors
+        if (data.status === 'error' && data.message) {
+            console.warn("Proxy Error:", data.message);
+            return null;
+        }
+
         if (data.status !== 'ok') return null;
 
         return data.articles.map(article => ({
@@ -119,6 +133,7 @@ const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
         }));
 
     } catch (error) {
+        console.error("API Fetch Error:", error);
         return null;
     }
 };
@@ -131,8 +146,7 @@ export const fetchNews = async (location) => {
     // STRICT QUERY: +Bloomington +Illinois -Indiana
     const strictQuery = state ? `+"${city}" +"${state}" -Indiana -Hoosiers` : `"${city}" -Indiana -Hoosiers`;
 
-    // 1. Try Real News (API)
-    // On localhost, this works. On GitHub Pages (Production), this usually fails (403/426).
+    // 1. Try Real News (API / Proxy)
     let data = await fetchFromNewsAPI(strictQuery, 'publishedAt');
     if (data && data.length > 0) return data;
 
@@ -141,7 +155,6 @@ export const fetchNews = async (location) => {
     if (data && data.length > 0) return data;
 
     // 2. Fallback: Use Rich Mock Data
-    // This makes the Production version look "Real" and "Detailed" instead of broken.
     return generateMockNews(city);
 };
 
