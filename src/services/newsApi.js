@@ -104,10 +104,12 @@ const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
             if (!NEWS_API_KEY || NEWS_API_KEY.includes('your_api_key')) return null;
             url = `${BASE_URL}?q=${encodeURIComponent(query)}&language=en&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
         } else {
-            // [PRODUCTION / CLOUDFLARE]: Call our own Proxy Function
-            // Browser -> /api/news -> Cloudflare -> NewsAPI
-            // No API Key needed here, it's stored safely on Cloudflare
-            url = `/api/news?q=${encodeURIComponent(query)}&sortBy=${sortBy}`;
+            // [PRODUCTION / PROXY]:
+            // Call local endpoint '/api/news' which must be proxied by Nginx or Cloudflare.
+            // We append apiKey here so "dumb proxies" (like Nginx) can simply forward the request.
+            // (Cloudflare Functions will ignore this param if they use their own env secret, so it's safe).
+            if (!NEWS_API_KEY) return null;
+            url = `/api/news?q=${encodeURIComponent(query)}&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
         }
 
         const response = await fetch(url);
