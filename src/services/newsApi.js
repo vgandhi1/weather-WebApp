@@ -1,6 +1,75 @@
 const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 const BASE_URL = 'https://newsapi.org/v2/everything';
 
+/** rss2json proxies RSS feeds with CORS — works for static GitHub Pages (no /api/news backend). */
+const RSS2JSON_ENDPOINT = 'https://api.rss2json.com/v1/api.json';
+const RSS2JSON_KEY = import.meta.env.VITE_RSS2JSON_API_KEY;
+
+function stripHtmlEntities(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .replace(/<[^>]*>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"');
+}
+
+function buildGoogleNewsRssUrl(searchQuery, countryCode) {
+    const gl = countryCode && /^[A-Za-z]{2}$/.test(String(countryCode))
+        ? String(countryCode).toUpperCase()
+        : 'US';
+    const ceid = `${gl}:en`;
+    return `https://news.google.com/rss/search?q=${encodeURIComponent(searchQuery)}&hl=en-US&gl=${gl}&ceid=${encodeURIComponent(ceid)}`;
+}
+
+async function fetchRssItems(rssUrl) {
+    try {
+        let url = `${RSS2JSON_ENDPOINT}?rss_url=${encodeURIComponent(rssUrl)}`;
+        if (RSS2JSON_KEY && !String(RSS2JSON_KEY).includes('your_')) {
+            url += `&api_key=${encodeURIComponent(RSS2JSON_KEY)}`;
+        }
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.status !== 'ok' || !Array.isArray(data.items) || data.items.length === 0) return null;
+        return data.items;
+    } catch {
+        return null;
+    }
+}
+
+/** Real headlines for the searched area — works on static hosts without NewsAPI proxy. */
+async function fetchLocalNewsFromGoogleRss(city, state, country) {
+    const parts = [city, state, country].filter(Boolean);
+    if (parts.length === 0) return null;
+    const rssUrl = buildGoogleNewsRssUrl(parts.join(' '), country);
+    const items = await fetchRssItems(rssUrl);
+    if (!items) return null;
+    return items.slice(0, 10).map((item) => ({
+        title: stripHtmlEntities(item.title),
+        link: item.link,
+        image: item.thumbnail || (item.enclosure && item.enclosure.link) || undefined,
+        source: stripHtmlEntities(item.author) || 'Google News',
+        pubDate: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+    }));
+}
+
+async function fetchAttractionsFromGoogleRss(city, state, country) {
+    const parts = [city, state, country].filter(Boolean);
+    if (parts.length === 0) return null;
+    const query = `${parts.join(' ')} (travel OR tourism OR restaurant OR events OR landmarks OR "things to do")`;
+    const rssUrl = buildGoogleNewsRssUrl(query, country);
+    const items = await fetchRssItems(rssUrl);
+    if (!items) return null;
+    return items.slice(0, 10).map((item) => ({
+        title: stripHtmlEntities(item.title),
+        link: item.link,
+        source: stripHtmlEntities(item.author) || 'Google News',
+    }));
+}
+
 // --- RICH MOCK DATA GENERATOR (For Production Demo Fallback) ---
 const generateMockNews = (city) => [
     {
@@ -125,6 +194,7 @@ const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
         }
 
         if (data.status !== 'ok') return null;
+        if (!Array.isArray(data.articles)) return null;
 
         return data.articles.map(article => ({
             title: article.title,
@@ -141,36 +211,46 @@ const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
 };
 
 export const fetchNews = async (location) => {
-    const parts = location.split(',');
-    const city = parts[0].trim();
-    const state = parts.length > 1 ? parts[1].trim() : '';
+    const safeLoc = typeof location === 'string' ? location : '';
+    const parts = safeLoc.split(',').map((p) => p.trim()).filter(Boolean);
+    const city = parts[0] || 'Local';
+    const state = parts.length > 1 ? parts[1] : '';
+    const country = parts.length > 2 ? parts[2] : '';
 
     // STRICT QUERY: +Bloomington +Illinois -Indiana
     const strictQuery = state ? `+"${city}" +"${state}" -Indiana -Hoosiers` : `"${city}" -Indiana -Hoosiers`;
 
-    // 1. Try Real News (API / Proxy)
+    // 1. NewsAPI (dev: direct; prod: /api/news proxy — not available on GitHub Pages)
     let data = await fetchFromNewsAPI(strictQuery, 'publishedAt');
     if (data && data.length > 0) return data;
 
-    // Retry Relevancy
     data = await fetchFromNewsAPI(strictQuery, 'relevancy');
     if (data && data.length > 0) return data;
 
-    // 2. Fallback: Use Rich Mock Data
+    // 2. Static-friendly: Google News RSS via rss2json (no backend)
+    data = await fetchLocalNewsFromGoogleRss(city, state, country);
+    if (data && data.length > 0) return data;
+
+    // 3. Demo fallback
     return generateMockNews(city);
 };
 
 export const fetchAttractions = async (location) => {
-    const parts = location.split(',');
-    const city = parts[0].trim();
-    const state = parts.length > 1 ? parts[1].trim() : '';
+    const safeLoc = typeof location === 'string' ? location : '';
+    const parts = safeLoc.split(',').map((p) => p.trim()).filter(Boolean);
+    const city = parts[0] || 'Local';
+    const state = parts.length > 1 ? parts[1] : '';
+    const country = parts.length > 2 ? parts[2] : '';
 
     const keywords = '(tourism OR "things to do" OR restaurants OR landmarks)';
     const strictQuery = state
         ? `+"${city}" +"${state}" AND ${keywords} -Indiana -Hoosiers`
         : `"${city}" AND ${keywords} -Indiana -Hoosiers`;
 
-    const data = await fetchFromNewsAPI(strictQuery, 'relevancy');
+    let data = await fetchFromNewsAPI(strictQuery, 'relevancy');
+    if (data && data.length > 0) return data;
+
+    data = await fetchAttractionsFromGoogleRss(city, state, country);
     if (data && data.length > 0) return data;
 
     return generateMockAttractions(city);

@@ -37,16 +37,20 @@ function App() {
         weatherData.country
       ].filter(Boolean).join(', ');
 
+      let newsData = [];
+      let attractionsData = [];
       try {
-        const [newsData, attractionsData] = await Promise.all([
-          fetchNews(locationString),
-          fetchAttractions(locationString)
-        ]);
-        setNews(newsData);
-        setAttractions(attractionsData);
+        newsData = await fetchNews(locationString);
       } catch (secondaryErr) {
-        console.error("Failed to fetch secondary data", secondaryErr);
+        console.error('Failed to fetch news', secondaryErr);
       }
+      try {
+        attractionsData = await fetchAttractions(locationString);
+      } catch (secondaryErr) {
+        console.error('Failed to fetch local guide', secondaryErr);
+      }
+      setNews(Array.isArray(newsData) ? newsData : []);
+      setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
 
     } catch (err) {
       setError(err.message);
