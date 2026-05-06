@@ -1,44 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import SearchBar from './components/SearchBar';
+import { CloudAlert, RefreshCw, Newspaper, Compass } from 'lucide-react';
+import AppHeader from './components/AppHeader';
 import CurrentWeather from './components/CurrentWeather';
 import Forecast from './components/Forecast';
 import NewsFeed from './components/NewsFeed';
 import LocalGuide from './components/LocalGuide';
-import UnitToggle from './components/UnitToggle';
-import { getWeather, getForecast } from './services/weatherApi';
+import WeatherSkeleton from './components/WeatherSkeleton';
+import WeatherInsights from './components/WeatherInsights';
+import WeatherTips from './components/WeatherTips';
+import { getWeather, getForecast, getAirQuality } from './services/weatherApi';
 import { fetchNews, fetchAttractions } from './services/newsApi';
+
+function getBackgroundStyle(weather) {
+  if (!weather) return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  const condition = weather.condition.toLowerCase();
+  if (condition.includes('clear') || condition.includes('sun')) {
+    return 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)';
+  }
+  if (condition.includes('cloud')) return 'linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)';
+  if (condition.includes('rain') || condition.includes('drizzle')) {
+    return 'linear-gradient(135deg, #536976 0%, #292E49 100%)';
+  }
+  if (condition.includes('storm')) return 'linear-gradient(135deg, #141E30 0%, #243B55 100%)';
+  if (condition.includes('snow')) return 'linear-gradient(135deg, #E6DADA 0%, #274046 100%)';
+  return 'linear-gradient(135deg, #1d2671 0%, #c33764 100%)';
+}
+
+/** Drives `data-surface` on shell for text contrast (see `index.css`). */
+function getDataSurface(weather) {
+  if (!weather) return 'dark';
+  const c = weather.condition.toLowerCase();
+  if (c.includes('clear') || c.includes('sun')) return 'bright';
+  return 'dark';
+}
+
+function EmptyBlock({ graphic, title, hint }) {
+  return (
+    <div className="glass-panel--subtle empty-state" role="status">
+      <div className="empty-state__icon">{graphic}</div>
+      <p className="empty-state__title">{title}</p>
+      <p className="empty-state__hint">{hint}</p>
+    </div>
+  );
+}
 
 function App() {
   const [weather, setWeather] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [news, setNews] = useState([]);
   const [attractions, setAttractions] = useState([]);
+  const [airQuality, setAirQuality] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [unit, setUnit] = useState('F'); // 'F' or 'C'
+  const [unit, setUnit] = useState('F');
+  const lastQueryRef = useRef('Bloomington, Illinois, US');
 
-  const fetchWeatherData = async (city) => {
+  const fetchWeatherData = useCallback(async (city) => {
+    const q = (city || '').trim() || lastQueryRef.current;
+    lastQueryRef.current = q;
     setLoading(true);
     setError(null);
+    setAirQuality(null);
 
     try {
-      const [weatherData, forecastData] = await Promise.all([
-        getWeather(city),
-        getForecast(city)
-      ]);
+      const [weatherData, forecastData] = await Promise.all([getWeather(q), getForecast(q)]);
 
       setWeather(weatherData);
       setForecast(forecastData);
 
-      const locationString = [
-        weatherData.name,
-        weatherData.state,
-        weatherData.country
-      ].filter(Boolean).join(', ');
+      const locationString = [weatherData.name, weatherData.state, weatherData.country]
+        .filter(Boolean)
+        .join(', ');
 
       let newsData = [];
       let attractionsData = [];
+      let aqi = null;
+
+      try {
+        aqi = await getAirQuality(weatherData.lat, weatherData.lon);
+      } catch {
+        aqi = null;
+      }
+      setAirQuality(aqi);
+
       try {
         newsData = await fetchNews(locationString);
       } catch (secondaryErr) {
@@ -49,127 +94,116 @@ function App() {
       } catch (secondaryErr) {
         console.error('Failed to fetch local guide', secondaryErr);
       }
+
       setNews(Array.isArray(newsData) ? newsData : []);
       setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
-
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Something went wrong');
+      setWeather(null);
+      setForecast(null);
+      setNews([]);
+      setAttractions([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleUnit = () => {
-    setUnit(prev => prev === 'F' ? 'C' : 'F');
-  };
+  }, []);
 
   useEffect(() => {
     fetchWeatherData('Bloomington, Illinois, US');
-  }, []);
+  }, [fetchWeatherData]);
 
-  const getBackgroundStyle = () => {
-    if (!weather) return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-    const condition = weather.condition.toLowerCase();
-
-    if (condition.includes('clear') || condition.includes('sun')) return 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)';
-    if (condition.includes('cloud')) return 'linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%)';
-    if (condition.includes('rain') || condition.includes('drizzle')) return 'linear-gradient(135deg, #536976 0%, #292E49 100%)';
-    if (condition.includes('storm')) return 'linear-gradient(135deg, #141E30 0%, #243B55 100%)';
-    if (condition.includes('snow')) return 'linear-gradient(135deg, #E6DADA 0%, #274046 100%)';
-
-    return 'linear-gradient(135deg, #1d2671 0%, #c33764 100%)';
-  };
+  const surface = getDataSurface(weather);
 
   return (
     <>
       <motion.div
         className="background-wrapper"
         initial={false}
-        animate={{ background: getBackgroundStyle() }}
-        transition={{ duration: 1.5, ease: "easeInOut" }}
-        style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1, pointerEvents: 'none' }}
+        animate={{ background: getBackgroundStyle(weather) }}
+        transition={{ duration: 1.5, ease: 'easeInOut' }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: -1,
+          pointerEvents: 'none',
+        }}
       />
 
-      <div style={{ display: 'flex', width: '100%', maxWidth: '500px', marginBottom: '2rem' }}>
-        <SearchBar onSearch={fetchWeatherData} />
-        <UnitToggle unit={unit} onToggle={toggleUnit} />
+      <div className="app-shell" data-surface={surface}>
+        <AppHeader onSearch={fetchWeatherData} unit={unit} onUnitChange={setUnit} />
+
+        <AnimatePresence mode="wait">
+          {loading && <WeatherSkeleton key="sk" />}
+        </AnimatePresence>
+
+        {!loading && error && (
+          <motion.div
+            key="err"
+            role="alert"
+            className="glass-panel error-panel"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="error-panel__title">
+              <CloudAlert size={22} aria-hidden />
+              Couldn&apos;t load weather
+            </div>
+            <p className="error-panel__body">
+              Check the city spelling or your connection, then try again. If the problem continues, try another
+              search.
+            </p>
+            <button type="button" className="error-panel__retry" onClick={() => fetchWeatherData(lastQueryRef.current)}>
+              <RefreshCw size={16} style={{ marginRight: '0.4rem', verticalAlign: 'text-bottom' }} aria-hidden />
+              Retry
+            </button>
+          </motion.div>
+        )}
+
+        {!loading && !error && weather && (
+          <motion.div
+            className="dashboard-grid"
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.45 }}
+          >
+            <div className="dash-news-stack">
+              <WeatherInsights weather={weather} airQuality={airQuality} unit={unit} />
+              {news && news.length > 0 ? (
+                <NewsFeed news={news} />
+              ) : (
+                <EmptyBlock
+                  graphic={<Newspaper size={36} strokeWidth={1.25} aria-hidden />}
+                  title="No headlines right now"
+                  hint="RSS feeds can be rate-limited, or there may be no stories for this search. Try another city in a moment."
+                />
+              )}
+            </div>
+
+            <div className="dash-weather">
+              <CurrentWeather data={weather} unit={unit} />
+              <Forecast data={forecast} unit={unit} />
+            </div>
+
+            <div className="dash-guide">
+              <WeatherTips condition={weather.condition} description={weather.description} />
+              {attractions && attractions.length > 0 ? (
+                <LocalGuide items={attractions} location={[weather.name, weather.state].filter(Boolean).join(', ')} />
+              ) : (
+                <EmptyBlock
+                  graphic={<Compass size={36} strokeWidth={1.25} aria-hidden />}
+                  title="No explore links yet"
+                  hint="Travel and event picks load from the same RSS pipeline as headlines. Try a larger city or search again shortly."
+                />
+              )}
+            </div>
+          </motion.div>
+        )}
       </div>
-
-      <AnimatePresence mode="wait">
-        {loading && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass-panel"
-            style={{ padding: '1rem', color: 'white' }}
-          >
-            Loading...
-          </motion.div>
-        )}
-
-        {error && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass-panel"
-            style={{ padding: '1rem', color: '#ff6b6b' }}
-          >
-            {error}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {!loading && !error && weather && (
-        <motion.div
-          className="dashboard-grid"
-          key="content"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* 
-            MOBILE ORDER: DOM order is 1, 2, 3.
-            1. Weather (Center Column on Desktop)
-            2. News (Left Column on Desktop)
-            3. Guide (Right Column on Desktop)
-          */}
-
-          {/* 1. Weather Block */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gridArea: 'weather' }}>
-            <CurrentWeather data={weather} unit={unit} />
-            <Forecast data={forecast} unit={unit} />
-          </div>
-
-          {/* 2. News Block */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gridArea: 'news' }}>
-            {news && news.length > 0 ? (
-              <NewsFeed news={news} />
-            ) : (
-              <div className="glass-panel" style={{ padding: '1rem', color: 'rgba(255,255,255,0.7)', textAlign: 'center', width: '100%' }}>
-                <p>No news available.</p>
-              </div>
-            )}
-          </div>
-
-          {/* 3. Guide Block */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gridArea: 'guide' }}>
-            {attractions && attractions.length > 0 ? (
-              <LocalGuide
-                items={attractions}
-                location={[weather.name, weather.state].filter(Boolean).join(', ')}
-              />
-            ) : (
-              <div className="glass-panel" style={{ padding: '1rem', color: 'rgba(255,255,255,0.7)', textAlign: 'center', width: '100%' }}>
-                <p>No guide available.</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
     </>
   );
 }

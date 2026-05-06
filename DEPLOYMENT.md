@@ -38,7 +38,7 @@ So when you read “deploy the build folder,” **use `weather`** unless you cha
 | 2 | Run **`npm ci`** (or a clean **`npm install`**) after pulling | Avoids broken optional deps (e.g. Rollup native binaries on Linux). |
 | 3 | Keep **`.env` out of git**; set **`VITE_OPENWEATHER_API_KEY`** for CI if you automate builds | Keys must be present at **build** time for Vite; they are baked into the client bundle. |
 | 4 | Optional: **`VITE_RSS2JSON_API_KEY`** | Helps if rss2json rate-limits anonymous traffic for news/guide RSS fallback. |
-| 5 | Optional: **`VITE_NEWS_API_KEY`** only if you host **`/api/news`** (Cloudflare Worker, Nginx, etc.) | Plain GitHub Pages has no backend; NewsAPI is skipped and Google News RSS is used instead. |
+| 5 | Optional: **`VITE_NEWS_API_KEY`** + **`VITE_NEWS_PROXY=true`** only if you host **`/api/news`** (Cloudflare Worker, Nginx, etc.) | Without `VITE_NEWS_PROXY`, production skips NewsAPI; plain GitHub Pages uses Google News RSS via rss2json. See [`.env.example`](./.env.example). |
 | 6 | After build, open **`weather/index.html`** locally or run **`npx vite preview --outDir weather`** | Smoke-test assets and routing before pushing to `gh-pages`. |
 | 7 | Confirm **GitHub Pages** source is **`gh-pages` branch** (or **GitHub Actions** artifact) and the **repo name** matches **`base`** in Vite if the app is not at the domain root. | Wrong `base` breaks JS/CSS paths on project pages. |
 
@@ -72,7 +72,7 @@ Use this if you deploy from another host (S3, Netlify drop, etc.) or maintain th
 
 ### Option C — GitHub Actions (build in CI with secrets)
 
-1. Add repo secrets: **`VITE_OPENWEATHER_API_KEY`**, and optionally **`VITE_RSS2JSON_API_KEY`** / **`VITE_NEWS_API_KEY`**.
+1. Add repo secrets: **`VITE_OPENWEATHER_API_KEY`**, and optionally **`VITE_RSS2JSON_API_KEY`**, **`VITE_NEWS_API_KEY`**, and **`VITE_NEWS_PROXY`** (set to `true` only when `/api/news` exists). See [`.env.example`](./.env.example).
 2. Workflow steps (conceptually):
 
    - Checkout  

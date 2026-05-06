@@ -53,17 +53,38 @@ export const getWeather = async (query) => {
 
   // Map API response to our app's format
   return {
-    name: location.name, // Use the resolved name from Geocoding
-    state: location.state, // Include state
+    name: location.name,
+    state: location.state,
     country: location.country,
+    lat: data.coord.lat,
+    lon: data.coord.lon,
     timezone: data.timezone,
     temp: Math.round(data.main.temp),
+    feelsLike: Math.round(data.main.feels_like),
     condition: data.weather[0].main,
     description: data.weather[0].description,
     humidity: data.main.humidity,
+    pressure: data.main.pressure,
+    visibility: data.visibility != null ? Math.round(data.visibility / 1000 * 10) / 10 : null,
     windSpeed: data.wind.speed,
+    sunrise: data.sys?.sunrise ?? null,
+    sunset: data.sys?.sunset ?? null,
     icon: mapIcon(data.weather[0].icon)
   };
+};
+
+/** Air Quality Index 1–5 from Open-Weather air pollution API (same API key). */
+export const getAirQuality = async (lat, lon) => {
+  checkApiKey();
+  const response = await fetch(
+    `${BASE_URL}/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`
+  );
+  if (!response.ok) return null;
+  const data = await response.json();
+  const aqi = data?.list?.[0]?.main?.aqi;
+  if (aqi == null || aqi < 1 || aqi > 5) return null;
+  const labels = ['', 'Good', 'Fair', 'Moderate', 'Poor', 'Very poor'];
+  return { aqi, label: labels[aqi] || 'Unknown' };
 };
 
 export const getForecast = async (query) => {

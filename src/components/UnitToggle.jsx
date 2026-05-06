@@ -1,22 +1,22 @@
 import React from 'react';
 
-const UnitToggle = ({ unit, onToggle }) => {
-    return (
-        <button
-            onClick={onToggle}
-            className="glass-panel"
-            style={{
-                padding: '0.5rem 1rem',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '1rem',
-                marginLeft: '1rem',
-                minWidth: '80px'
-            }}
-        >
-            °{unit}
-        </button>
-    );
-};
+const UnitToggle = ({ unit, onChange }) => (
+  <div className="unit-segment" role="group" aria-label="Temperature unit">
+    <button
+      type="button"
+      aria-pressed={unit === 'C'}
+      onClick={() => onChange('C')}
+    >
+      °C
+    </button>
+    <button
+      type="button"
+      aria-pressed={unit === 'F'}
+      onClick={() => onChange('F')}
+    >
+      °F
+    </button>
+  </div>
+);
 
 export default UnitToggle;

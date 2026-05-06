@@ -1,4 +1,6 @@
 const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+/** Set to `true` in .env when production has a real `/api/news` proxy (Nginx, Cloudflare, etc.). Plain GitHub Pages should leave this unset so we skip NewsAPI and use RSS. */
+const NEWS_PROXY_ENABLED = import.meta.env.VITE_NEWS_PROXY === 'true';
 const BASE_URL = 'https://newsapi.org/v2/everything';
 
 /** rss2json proxies RSS feeds with CORS — works for static GitHub Pages (no /api/news backend). */
@@ -173,11 +175,8 @@ const fetchFromNewsAPI = async (query, sortBy = 'publishedAt') => {
             if (!NEWS_API_KEY || NEWS_API_KEY.includes('your_api_key')) return null;
             url = `${BASE_URL}?q=${encodeURIComponent(query)}&language=en&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
         } else {
-            // [PRODUCTION / PROXY]:
-            // Call local endpoint '/api/news' which must be proxied by Nginx or Cloudflare.
-            // We append apiKey here so "dumb proxies" (like Nginx) can simply forward the request.
-            // (Cloudflare Functions will ignore this param if they use their own env secret, so it's safe).
-            if (!NEWS_API_KEY) return null;
+            // [PRODUCTION]: Only call `/api/news` when a proxy is explicitly enabled (static hosts have no API route).
+            if (!NEWS_PROXY_ENABLED || !NEWS_API_KEY) return null;
             url = `/api/news?q=${encodeURIComponent(query)}&sortBy=${sortBy}&pageSize=10&apiKey=${NEWS_API_KEY}`;
         }
 

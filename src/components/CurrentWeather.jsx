@@ -1,105 +1,126 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Cloud, Sun, CloudRain, Wind, Droplets, CloudSun } from 'lucide-react';
 import Tilt from 'react-parallax-tilt';
 import { motion } from 'framer-motion';
 
 const WeatherIcon = ({ icon, size = 64 }) => {
-    switch (icon) {
-        case 'sun': return <Sun size={size} color="#FDB813" />;
-        case 'cloud': return <Cloud size={size} color="#fff" />;
-        case 'cloud-rain': return <CloudRain size={size} color="#fff" />;
-        case 'cloud-sun': return <CloudSun size={size} color="#fff" />;
-        default: return <Cloud size={size} color="#fff" />;
-    }
+  switch (icon) {
+    case 'sun':
+      return <Sun size={size} color="#FDB813" aria-hidden />;
+    case 'cloud':
+      return <Cloud size={size} color="currentColor" aria-hidden />;
+    case 'cloud-rain':
+      return <CloudRain size={size} color="currentColor" aria-hidden />;
+    case 'cloud-sun':
+      return <CloudSun size={size} color="currentColor" aria-hidden />;
+    default:
+      return <Cloud size={size} color="currentColor" aria-hidden />;
+  }
 };
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const fn = () => setReduced(mq.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  return reduced;
+}
+
 const CurrentWeather = ({ data, unit }) => {
-    if (!data) return null;
+  const reducedMotion = usePrefersReducedMotion();
+  if (!data) return null;
 
-    // 1. Calculate Wind Speed based on Unit
-    const windSpeed = unit === 'F'
-        ? Math.round(data.windSpeed * 2.237) + ' mph'
-        : Math.round(data.windSpeed * 3.6) + ' km/h';
+  const windSpeed =
+    unit === 'F' ? `${Math.round(data.windSpeed * 2.237)} mph` : `${Math.round(data.windSpeed * 3.6)} km/h`;
 
-    // 2. Calculate Temp based on Unit
-    const displayTemp = Math.round(unit === 'F' ? (data.temp * 9 / 5 + 32) : data.temp);
+  const displayTemp = Math.round(unit === 'F' ? (data.temp * 9) / 5 + 32 : data.temp);
 
-    const getLocalTime = () => {
-        const d = new Date();
-        const utc = d.getTime() + d.getTimezoneOffset() * 60000;
-        const cityTime = utc + data.timezone * 1000;
-        return new Date(cityTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
+  const getLocalTime = () => {
+    const d = new Date();
+    const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+    const cityTime = utc + data.timezone * 1000;
+    return new Date(cityTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
+  const inner = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.45, ease: 'easeOut' }}
+      className="glass-panel--elevated current-hero-inner"
+    >
+      <div style={{ marginBottom: '1rem', transform: 'translateZ(20px)' }}>
+        <WeatherIcon icon={data.icon} size={80} />
+      </div>
+
+      <h2 style={{ fontSize: 'var(--text-2xl)', marginBottom: '0.25rem', textAlign: 'center' }}>
+        {data.name}
+        {data.state ? `, ${data.state}` : ''}
+        {data.country ? `, ${data.country}` : ''}
+      </h2>
+      <p style={{ fontSize: 'var(--text-sm)', opacity: 0.82, marginBottom: '0.5rem' }}>
+        Local time: {getLocalTime()}
+      </p>
+
+      <h1
+        style={{
+          fontSize: 'var(--text-hero)',
+          fontWeight: 700,
+          marginBottom: '0.35rem',
+          lineHeight: 1.05,
+        }}
+        className="text-shadow"
+      >
+        {displayTemp}°{unit}
+      </h1>
+
+      <p style={{ fontSize: 'var(--text-lg)', marginBottom: '1.5rem', opacity: 0.9, textTransform: 'capitalize' }}>
+        {data.description}
+      </p>
+
+      <div className="current-hero-metrics">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: 'var(--text-sm)', opacity: 0.85 }}>
+            <Droplets size={20} style={{ color: 'rgba(120, 200, 255, 0.95)' }} aria-hidden />
+            <span>Humidity</span>
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-xl)' }}>{data.humidity}%</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: 'var(--text-sm)', opacity: 0.85 }}>
+            <Wind size={20} style={{ color: 'rgba(255,255,255,0.75)' }} aria-hidden />
+            <span>Wind</span>
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-xl)' }}>{windSpeed}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  if (reducedMotion) {
     return (
-        <Tilt
-            tiltMaxAngleX={5}
-            tiltMaxAngleY={5}
-            scale={1.02}
-            transitionSpeed={2000}
-            className="parallax-effect-glare-scale"
-            perspective={500}
-            style={{ width: '100%', maxWidth: '500px', marginBottom: '2rem' }}
-        >
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="glass-panel"
-                style={{
-                    padding: '2rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    transformStyle: 'preserve-3d'
-                }}
-            >
-                <div style={{ marginBottom: '1rem', transform: 'translateZ(20px)' }}>
-                    <WeatherIcon icon={data.icon} size={80} />
-                </div>
-
-                <h2 style={{ fontSize: '2rem', marginBottom: '0.2rem', transform: 'translateZ(30px)' }}>
-                    {data.name}{data.state ? `, ${data.state}` : ''}{data.country ? `, ${data.country}` : ''}
-                </h2>
-                <p style={{ fontSize: '1rem', opacity: 0.8, marginBottom: '0.5rem', transform: 'translateZ(20px)' }}>
-                    Local Time: {getLocalTime()}
-                </p>
-
-                <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '0.5rem', transform: 'translateZ(50px)' }} className="text-shadow">
-                    {displayTemp}°{unit}
-                </h1>
-
-                <p style={{ fontSize: '1.5rem', marginBottom: '2rem', opacity: 0.9, transform: 'translateZ(25px)' }}>
-                    {data.description}
-                </p>
-
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    width: '100%',
-                    borderTop: '1px solid rgba(255,255,255,0.2)',
-                    paddingTop: '1.5rem',
-                    transform: 'translateZ(20px)'
-                }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <Droplets size={20} style={{ marginRight: '0.5rem' }} />
-                            <span>Humidity</span>
-                        </div>
-                        <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{data.humidity}%</span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <Wind size={20} style={{ marginRight: '0.5rem' }} />
-                            <span>Wind</span>
-                        </div>
-                        <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{windSpeed}</span>
-                    </div>
-                </div>
-            </motion.div>
-        </Tilt>
+      <div style={{ width: '100%', maxWidth: '480px', marginBottom: '1.5rem' }}>{inner}</div>
     );
+  }
+
+  return (
+    <Tilt
+      tiltMaxAngleX={5}
+      tiltMaxAngleY={5}
+      scale={1.02}
+      transitionSpeed={2000}
+      perspective={500}
+      style={{ width: '100%', maxWidth: '480px', marginBottom: '1.5rem' }}
+    >
+      {inner}
+    </Tilt>
+  );
 };
 
 export default CurrentWeather;

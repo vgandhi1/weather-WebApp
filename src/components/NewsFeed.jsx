@@ -3,96 +3,87 @@ import { Newspaper, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const NewsFeed = ({ news }) => {
-    if (!news || news.length === 0) return null;
+  if (!news || news.length === 0) return null;
 
-    const container = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08 },
+    },
+  };
 
-    const item = {
-        hidden: { opacity: 0, x: -20 },
-        show: { opacity: 1, x: 0 }
-    };
+  const item = {
+    hidden: { opacity: 0, x: -12 },
+    show: { opacity: 1, x: 0 },
+  };
 
-    // Helper to format date relative to now (e.g., "2 hours ago")
-    const timeAgo = (dateString) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const seconds = Math.floor((now - date) / 1000);
+  const timeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    let interval = seconds / 3600;
+    if (interval > 1) return `${Math.floor(interval)}h ago`;
+    interval = seconds / 60;
+    if (interval > 1) return `${Math.floor(interval)}m ago`;
+    return 'Just now';
+  };
 
-        let interval = seconds / 3600;
-        if (interval > 1) {
-            return Math.floor(interval) + "h ago";
-        }
-        interval = seconds / 60;
-        if (interval > 1) {
-            return Math.floor(interval) + "m ago";
-        }
-        return "Just now";
-    };
+  return (
+    <motion.section
+      className="glass-panel--subtle news-feed-wrap"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.28 }}
+      style={{ padding: 'var(--spacing-md)', width: '100%' }}
+      aria-label="Local headlines"
+    >
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-sm)', gap: '0.5rem' }}>
+        <Newspaper size={20} aria-hidden />
+        <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 600 }}>Local headlines</h3>
+      </div>
 
-    return (
-        <motion.div
-            className="glass-panel"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }} // Stagger after forecast
-            style={{
-                padding: '1.5rem',
-                width: '100%',
-                maxWidth: '500px',
-                marginTop: '1rem'
-            }}
-        >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                <Newspaper size={20} style={{ marginRight: '0.5rem' }} />
-                <h3 style={{ fontSize: '1.2rem' }}>Local Headlines</h3>
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}
+      >
+        {news.map((article, index) => (
+          <motion.a
+            variants={item}
+            key={index}
+            href={article.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`feed-card${article.image ? ' feed-card--thumb' : ''}`}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            {article.image ? (
+              <img
+                src={article.image}
+                alt=""
+                className="feed-card-thumb"
+                loading="lazy"
+                decoding="async"
+              />
+            ) : null}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span className="feed-card-title">{article.title}</span>
+              <div className="feed-card-meta">
+                <span className="source-pill">{article.source || 'News'}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {timeAgo(article.pubDate)}
+                  <ExternalLink size={12} aria-hidden />
+                </span>
+              </div>
             </div>
-
-            <motion.div
-                variants={container}
-                initial="hidden"
-                animate="show"
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}
-            >
-                {news.map((article, index) => (
-                    <motion.a
-                        variants={item}
-                        key={index}
-                        href={article.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            textDecoration: 'none',
-                            color: 'inherit',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            padding: '0.8rem',
-                            background: 'rgba(255,255,255,0.05)',
-                            borderRadius: '8px',
-                            transition: 'background 0.2s',
-                            cursor: 'pointer'
-                        }}
-                        whileHover={{ background: 'rgba(255,255,255,0.15)', scale: 1.02 }}
-                    >
-                        <span style={{ fontWeight: '500', fontSize: '0.95rem', marginBottom: '0.4rem', lineHeight: '1.4' }}>
-                            {article.title}
-                        </span>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', opacity: 0.7 }}>
-                            <span>{timeAgo(article.pubDate)}</span>
-                            <ExternalLink size={12} />
-                        </div>
-                    </motion.a>
-                ))}
-            </motion.div>
-        </motion.div>
-    );
+          </motion.a>
+        ))}
+      </motion.div>
+    </motion.section>
+  );
 };
 
 export default NewsFeed;
