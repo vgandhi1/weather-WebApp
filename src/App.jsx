@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CloudAlert, RefreshCw, Newspaper, Compass } from 'lucide-react';
 import AppHeader from './components/AppHeader';
@@ -9,8 +9,10 @@ import LocalGuide from './components/LocalGuide';
 import WeatherSkeleton from './components/WeatherSkeleton';
 import WeatherInsights from './components/WeatherInsights';
 import WeatherTips from './components/WeatherTips';
-import { getWeather, getForecast, getAirQuality } from './services/weatherApi';
+import { getWeather, getForecast, getAirQuality, getOneCallHourly, getOneCallDaily, getMapTileUrl } from './services/weatherApi';
 import { fetchNews, fetchAttractions } from './services/newsApi';
+
+const HourlyForecast = lazy(() => import('./components/HourlyForecast'));
 
 function getBackgroundStyle(weather) {
   if (!weather) return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
@@ -51,6 +53,9 @@ function App() {
   const [news, setNews] = useState([]);
   const [attractions, setAttractions] = useState([]);
   const [airQuality, setAirQuality] = useState(null);
+  const [hourlyOneCall, setHourlyOneCall] = useState(null);
+  const [dailyOneCall, setDailyOneCall] = useState(null);
+  const [precipTileUrl, setPrecipTileUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unit, setUnit] = useState('F');
@@ -62,6 +67,9 @@ function App() {
     setLoading(true);
     setError(null);
     setAirQuality(null);
+    setHourlyOneCall(null);
+    setDailyOneCall(null);
+    setPrecipTileUrl(null);
 
     try {
       const [weatherData, forecastData] = await Promise.all([getWeather(q), getForecast(q)]);
@@ -85,6 +93,20 @@ function App() {
       setAirQuality(aqi);
 
       try {
+        const [oneHourly, oneDaily] = await Promise.all([
+          getOneCallHourly(weatherData.lat, weatherData.lon),
+          getOneCallDaily(weatherData.lat, weatherData.lon),
+        ]);
+        setHourlyOneCall(oneHourly?.hourly ?? null);
+        setDailyOneCall(oneDaily ?? null);
+        setPrecipTileUrl(getMapTileUrl(weatherData.lat, weatherData.lon));
+      } catch {
+        setHourlyOneCall(null);
+        setDailyOneCall(null);
+        setPrecipTileUrl(null);
+      }
+
+      try {
         newsData = await fetchNews(locationString);
       } catch (secondaryErr) {
         console.error('Failed to fetch news', secondaryErr);
@@ -103,6 +125,9 @@ function App() {
       setForecast(null);
       setNews([]);
       setAttractions([]);
+      setHourlyOneCall(null);
+      setDailyOneCall(null);
+      setPrecipTileUrl(null);
     } finally {
       setLoading(false);
     }
@@ -172,7 +197,13 @@ function App() {
             transition={{ duration: 0.45 }}
           >
             <div className="dash-news-stack">
-              <WeatherInsights weather={weather} airQuality={airQuality} unit={unit} />
+              <WeatherInsights
+                weather={weather}
+                airQuality={airQuality}
+                oneCallDaily={dailyOneCall}
+                tileUrl={precipTileUrl}
+                unit={unit}
+              />
               {news && news.length > 0 ? (
                 <NewsFeed news={news} />
               ) : (
@@ -186,7 +217,26 @@ function App() {
 
             <div className="dash-weather">
               <CurrentWeather data={weather} unit={unit} />
-              <Forecast data={forecast} unit={unit} />
+              <Suspense
+                fallback={
+                  <div className="glass-panel--subtle hourly-dashboard hourly-dashboard--skeleton" aria-hidden>
+                    <div className="hourly-skeleton-bar" />
+                    <div className="hourly-skeleton-scroll">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="hourly-skeleton-chip" />
+                      ))}
+                    </div>
+                  </div>
+                }
+              >
+                <HourlyForecast
+                  hourlyData={hourlyOneCall}
+                  unit={unit}
+                  timezoneOffsetSec={weather.timezone}
+                  surface={surface}
+                />
+              </Suspense>
+              <Forecast data={forecast} dailyOneCall={dailyOneCall?.daily} unit={unit} />
             </div>
 
             <div className="dash-guide">

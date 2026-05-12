@@ -1,5 +1,6 @@
 const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+const ONE_CALL_URL = 'https://api.openweathermap.org/data/3.0/onecall';
 const GEO_URL = 'https://api.openweathermap.org/geo/1.0';
 
 // Helper to validate API key
@@ -112,6 +113,133 @@ export const getForecast = async (query) => {
     condition: day.weather[0].main,
     icon: mapIcon(day.weather[0].icon)
   }));
+};
+
+/**
+ * One Call 3.0 — daily slice (8 days) + current uvi/dew_point.
+ * Returns null on failure; app degrades gracefully.
+ */
+export const getOneCallDaily = async (lat, lon) => {
+  checkApiKey();
+  const la = Number(lat);
+  const lo = Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  if (la < -90 || la > 90 || lo < -180 || lo > 180) return null;
+
+  const url = new URL(ONE_CALL_URL);
+  url.searchParams.set('lat', String(la));
+  url.searchParams.set('lon', String(lo));
+  url.searchParams.set('units', 'metric');
+  url.searchParams.set('exclude', 'minutely,hourly,alerts');
+  url.searchParams.set('appid', API_KEY);
+
+  let response;
+  try {
+    response = await fetch(url.toString());
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return null;
+  }
+
+  const cur = data.current || {};
+  const daily = Array.isArray(data.daily)
+    ? data.daily.slice(0, 7).map((d) => ({
+        dt: d.dt,
+        dayLabel: new Date(d.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' }),
+        tempMin: typeof d.temp?.min === 'number' ? d.temp.min : null,
+        tempMax: typeof d.temp?.max === 'number' ? d.temp.max : null,
+        pop: typeof d.pop === 'number' ? d.pop : 0,
+        iconCode: d.weather?.[0]?.icon ?? '01d',
+        condition: d.weather?.[0]?.main ?? '',
+        moonPhase: typeof d.moon_phase === 'number' ? d.moon_phase : null,
+      }))
+    : [];
+
+  return {
+    uvi: typeof cur.uvi === 'number' ? cur.uvi : null,
+    dewPoint: typeof cur.dew_point === 'number' ? cur.dew_point : null,
+    windDeg: typeof cur.wind_deg === 'number' ? cur.wind_deg : null,
+    windGust: typeof cur.wind_gust === 'number' ? cur.wind_gust : null,
+    clouds: typeof cur.clouds === 'number' ? cur.clouds : null,
+    daily,
+  };
+};
+
+/**
+ * OWM weather map tile URL (precipitation layer) for a fixed zoom level centred on lat/lon.
+ * Returns a plain string URL — no user input embedded; coordinates come from geocoded weather data.
+ * @param {number} lat  Validated latitude from weather response
+ * @param {number} lon  Validated longitude from weather response
+ * @param {'precipitation_new'|'clouds_new'|'wind_new'} [layer]
+ */
+export const getMapTileUrl = (lat, lon, layer = 'precipitation_new') => {
+  const la = Number(lat);
+  const lo = Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  if (la < -90 || la > 90 || lo < -180 || lo > 180) return null;
+
+  const zoom = 6;
+  const n = Math.pow(2, zoom);
+  const xTile = Math.floor(((lo + 180) / 360) * n);
+  const latRad = (la * Math.PI) / 180;
+  const yTile = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+
+  return `https://tile.openweathermap.org/map/${layer}/${zoom}/${xTile}/${yTile}.png?appid=${API_KEY}`;
+};
+
+/**
+ * One Call 3.0 — hourly slice for dashboard (48h available; caller typically uses first 24).
+ * Returns null if the key cannot access One Call or the request fails.
+ */
+export const getOneCallHourly = async (lat, lon) => {
+  checkApiKey();
+  const la = Number(lat);
+  const lo = Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  if (la < -90 || la > 90 || lo < -180 || lo > 180) return null;
+
+  const url = new URL(ONE_CALL_URL);
+  url.searchParams.set('lat', String(la));
+  url.searchParams.set('lon', String(lo));
+  url.searchParams.set('units', 'metric');
+  url.searchParams.set('exclude', 'minutely,daily,alerts,current');
+  url.searchParams.set('appid', API_KEY);
+
+  let response;
+  try {
+    response = await fetch(url.toString());
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(data.hourly)) return null;
+
+  const hourly = data.hourly.map((h) => ({
+    dt: h.dt,
+    temp: typeof h.temp === 'number' ? h.temp : null,
+    pop: typeof h.pop === 'number' ? h.pop : 0,
+    iconCode: h.weather?.[0]?.icon ?? '01d',
+    description: h.weather?.[0]?.description ?? '',
+    windDeg: typeof h.wind_deg === 'number' ? h.wind_deg : null,
+    windSpeed: typeof h.wind_speed === 'number' ? h.wind_speed : null,
+  }));
+
+  return { hourly };
 };
 
 // Helper to map OpenWeatherMap icon codes to our internal icon names
