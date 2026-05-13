@@ -48,7 +48,7 @@ function HourlyTooltip({ active, payload, unit }) {
   );
 }
 
-const HourlyForecast = ({ hourlyData, unit, timezoneOffsetSec, surface = 'dark' }) => {
+const HourlyForecast = ({ hourlyData, unit, timezoneOffsetSec, surface = 'dark', isFallback = false }) => {
   const gradId = useId().replace(/:/g, '');
 
   const next24 = useMemo(() => {
@@ -105,7 +105,12 @@ const HourlyForecast = ({ hourlyData, unit, timezoneOffsetSec, surface = 'dark' 
       transition={{ delay: 0.18 }}
       aria-label="Hourly forecast for the next twenty-four hours"
     >
-      <h3 className="hourly-dashboard__title">24-hour outlook</h3>
+      <h3 className="hourly-dashboard__title">
+        {isFallback ? '3-day outlook' : '24-hour outlook'}
+      </h3>
+      {isFallback && (
+        <p className="hourly-dashboard__interval-note">3-hour intervals · upgrade to One Call 3.0 for hourly detail</p>
+      )}
 
       <div className="hourly-sparkline-wrap">
         <ResponsiveContainer width="100%" height={132}>

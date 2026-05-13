@@ -68,6 +68,7 @@ export const getWeather = async (query) => {
     pressure: data.main.pressure,
     visibility: data.visibility != null ? Math.round(data.visibility / 1000 * 10) / 10 : null,
     windSpeed: data.wind.speed,
+    windDeg: data.wind?.deg ?? null,
     sunrise: data.sys?.sunrise ?? null,
     sunset: data.sys?.sunset ?? null,
     icon: mapIcon(data.weather[0].icon)
@@ -107,12 +108,27 @@ export const getForecast = async (query) => {
 
   const dailyData = data.list.filter((reading) => reading.dt_txt.includes("12:00:00"));
 
-  return dailyData.slice(0, 5).map(day => ({
-    day: new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' }),
-    temp: Math.round(day.main.temp),
-    condition: day.weather[0].main,
-    icon: mapIcon(day.weather[0].icon)
+  // Map 3-hour interval entries to the same shape consumed by HourlyForecast,
+  // used as a fallback when One Call 3.0 is unavailable (free-tier keys).
+  const hourlyFallback = data.list.slice(0, 24).map((item) => ({
+    dt: item.dt,
+    temp: typeof item.main?.temp === 'number' ? item.main.temp : null,
+    pop: typeof item.pop === 'number' ? item.pop : 0,
+    iconCode: item.weather?.[0]?.icon ?? '01d',
+    description: item.weather?.[0]?.description ?? '',
+    windDeg: typeof item.wind?.deg === 'number' ? item.wind.deg : null,
+    windSpeed: typeof item.wind?.speed === 'number' ? item.wind.speed : null,
   }));
+
+  return {
+    daily: dailyData.slice(0, 5).map(day => ({
+      day: new Date(day.dt * 1000).toLocaleDateString('en-US', { weekday: 'short' }),
+      temp: Math.round(day.main.temp),
+      condition: day.weather[0].main,
+      icon: mapIcon(day.weather[0].icon),
+    })),
+    hourlyFallback,
+  };
 };
 
 /**
@@ -173,8 +189,9 @@ export const getOneCallDaily = async (lat, lon) => {
 };
 
 /**
- * OWM weather map tile URL (precipitation layer) for a fixed zoom level centred on lat/lon.
- * Returns a plain string URL — no user input embedded; coordinates come from geocoded weather data.
+ * Weather map tile URLs for a fixed zoom level centred on lat/lon.
+ * Returns { precipUrl, osmUrl } — coordinates come from geocoded weather data (no user input).
+ * osmUrl provides an OpenStreetMap base layer so the transparent precipitation overlay is visible.
  * @param {number} lat  Validated latitude from weather response
  * @param {number} lon  Validated longitude from weather response
  * @param {'precipitation_new'|'clouds_new'|'wind_new'} [layer]
@@ -191,7 +208,10 @@ export const getMapTileUrl = (lat, lon, layer = 'precipitation_new') => {
   const latRad = (la * Math.PI) / 180;
   const yTile = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
 
-  return `https://tile.openweathermap.org/map/${layer}/${zoom}/${xTile}/${yTile}.png?appid=${API_KEY}`;
+  return {
+    precipUrl: `https://tile.openweathermap.org/map/${layer}/${zoom}/${xTile}/${yTile}.png?appid=${API_KEY}`,
+    osmUrl: `https://tile.openstreetmap.org/${zoom}/${xTile}/${yTile}.png`,
+  };
 };
 
 /**

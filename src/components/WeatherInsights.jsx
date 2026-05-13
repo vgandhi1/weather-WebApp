@@ -181,12 +181,25 @@ function DewPointTile({ dewPointC, tempC, visibilityKm, unit }) {
 /* ─── Precipitation tile map ────────────────────────────── */
 function PrecipTile({ tileUrl }) {
   if (!tileUrl) return null;
+  const { precipUrl, osmUrl } = tileUrl;
   return (
     <div className="ins-map-wrap" aria-label="Local precipitation radar tile">
+      {osmUrl && (
+        <img
+          className="ins-map-base"
+          src={osmUrl}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          width={256}
+          height={256}
+        />
+      )}
       <img
         className="ins-map-img"
-        src={tileUrl}
-        alt="Precipitation overlay tile"
+        src={precipUrl}
+        alt="Precipitation overlay"
         loading="lazy"
         decoding="async"
         width={256}
@@ -194,7 +207,7 @@ function PrecipTile({ tileUrl }) {
       />
       <div className="ins-map-label">
         <Map size={11} aria-hidden />
-        Precipitation tile
+        Precipitation · © OSM
       </div>
     </div>
   );
@@ -217,7 +230,7 @@ const WeatherInsights = ({ weather, airQuality, oneCallDaily, tileUrl, unit }) =
 
   const uvi = oneCallDaily?.uvi ?? null;
   const dewPoint = oneCallDaily?.dewPoint ?? null;
-  const windDeg = oneCallDaily?.windDeg ?? null;
+  const windDeg = oneCallDaily?.windDeg ?? weather.windDeg ?? null;
   const windGust = oneCallDaily?.windGust ?? null;
 
   return (

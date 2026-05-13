@@ -54,6 +54,7 @@ function App() {
   const [attractions, setAttractions] = useState([]);
   const [airQuality, setAirQuality] = useState(null);
   const [hourlyOneCall, setHourlyOneCall] = useState(null);
+  const [forecastHourly, setForecastHourly] = useState(null);
   const [dailyOneCall, setDailyOneCall] = useState(null);
   const [precipTileUrl, setPrecipTileUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -68,6 +69,7 @@ function App() {
     setError(null);
     setAirQuality(null);
     setHourlyOneCall(null);
+    setForecastHourly(null);
     setDailyOneCall(null);
     setPrecipTileUrl(null);
 
@@ -75,7 +77,9 @@ function App() {
       const [weatherData, forecastData] = await Promise.all([getWeather(q), getForecast(q)]);
 
       setWeather(weatherData);
-      setForecast(forecastData);
+      setForecast(forecastData.daily);
+      setForecastHourly(forecastData.hourlyFallback);
+      setPrecipTileUrl(getMapTileUrl(weatherData.lat, weatherData.lon));
 
       const locationString = [weatherData.name, weatherData.state, weatherData.country]
         .filter(Boolean)
@@ -99,11 +103,9 @@ function App() {
         ]);
         setHourlyOneCall(oneHourly?.hourly ?? null);
         setDailyOneCall(oneDaily ?? null);
-        setPrecipTileUrl(getMapTileUrl(weatherData.lat, weatherData.lon));
       } catch {
         setHourlyOneCall(null);
         setDailyOneCall(null);
-        setPrecipTileUrl(null);
       }
 
       try {
@@ -126,6 +128,7 @@ function App() {
       setNews([]);
       setAttractions([]);
       setHourlyOneCall(null);
+      setForecastHourly(null);
       setDailyOneCall(null);
       setPrecipTileUrl(null);
     } finally {
@@ -230,10 +233,11 @@ function App() {
                 }
               >
                 <HourlyForecast
-                  hourlyData={hourlyOneCall}
+                  hourlyData={hourlyOneCall ?? forecastHourly}
                   unit={unit}
                   timezoneOffsetSec={weather.timezone}
                   surface={surface}
+                  isFallback={!hourlyOneCall && !!forecastHourly}
                 />
               </Suspense>
               <Forecast data={forecast} dailyOneCall={dailyOneCall?.daily} unit={unit} />

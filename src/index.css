@@ -744,22 +744,33 @@ a.feed-card:focus-visible {
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.25);
+  background: #a8c8e8;
 }
 
-.ins-map-img {
+.ins-map-base {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  opacity: 0.82;
-  mix-blend-mode: screen;
-  filter: saturate(1.4) brightness(1.1);
+}
+
+.ins-map-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0.75;
+  mix-blend-mode: multiply;
+  filter: saturate(1.6) brightness(1.05);
 }
 
 .app-shell[data-surface='bright'] .ins-map-img {
   mix-blend-mode: multiply;
-  opacity: 0.75;
+  opacity: 0.7;
 }
 
 .ins-map-label {
@@ -1068,6 +1079,13 @@ input {
   opacity: 0.82;
   line-height: 1.45;
   text-align: center;
+}
+
+.hourly-dashboard__interval-note {
+  font-size: var(--text-xs);
+  opacity: 0.58;
+  margin: -0.3rem 0 0.6rem;
+  letter-spacing: 0.01em;
 }
 
 .hourly-dashboard--skeleton {
