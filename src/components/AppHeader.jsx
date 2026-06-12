@@ -2,14 +2,14 @@ import React from 'react';
 import SearchBar from './SearchBar';
 import UnitToggle from './UnitToggle';
 
-const AppHeader = ({ onSearch, unit, onUnitChange }) => (
+const AppHeader = ({ onSearch, onLocate, locating, unit, onUnitChange }) => (
   <header className="app-header">
     <div className="app-header__brand">
       <span className="app-header__title">Weather</span>
       <span className="app-header__tag">Dashboard</span>
     </div>
     <div className="app-header__search-wrap">
-      <SearchBar onSearch={onSearch} />
+      <SearchBar onSearch={onSearch} onLocate={onLocate} locating={locating} />
     </div>
     <div className="app-header__controls">
       <UnitToggle unit={unit} onChange={onUnitChange} />

@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Cloud, Sun, CloudRain, Wind, Droplets, CloudSun } from 'lucide-react';
+import {
+  Cloud,
+  Sun,
+  Moon,
+  CloudRain,
+  Wind,
+  Droplets,
+  CloudSun,
+  CloudMoon,
+  CloudLightning,
+  CloudSnow,
+  CloudFog,
+} from 'lucide-react';
 import Tilt from 'react-parallax-tilt';
 import { motion } from 'framer-motion';
 
@@ -7,12 +19,21 @@ const WeatherIcon = ({ icon, size = 64 }) => {
   switch (icon) {
     case 'sun':
       return <Sun size={size} color="#FDB813" aria-hidden />;
-    case 'cloud':
-      return <Cloud size={size} color="currentColor" aria-hidden />;
-    case 'cloud-rain':
-      return <CloudRain size={size} color="currentColor" aria-hidden />;
+    case 'moon':
+      return <Moon size={size} color="#cdd6ff" aria-hidden />;
     case 'cloud-sun':
       return <CloudSun size={size} color="currentColor" aria-hidden />;
+    case 'cloud-moon':
+      return <CloudMoon size={size} color="currentColor" aria-hidden />;
+    case 'cloud-rain':
+      return <CloudRain size={size} color="currentColor" aria-hidden />;
+    case 'storm':
+      return <CloudLightning size={size} color="currentColor" aria-hidden />;
+    case 'snow':
+      return <CloudSnow size={size} color="currentColor" aria-hidden />;
+    case 'fog':
+      return <CloudFog size={size} color="currentColor" aria-hidden />;
+    case 'cloud':
     default:
       return <Cloud size={size} color="currentColor" aria-hidden />;
   }
@@ -31,7 +52,10 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-const CurrentWeather = ({ data, unit }) => {
+const toDisplayTemp = (tempC, unit) =>
+  Math.round(unit === 'F' ? (tempC * 9) / 5 + 32 : tempC);
+
+const CurrentWeather = ({ data, unit, today }) => {
   const reducedMotion = usePrefersReducedMotion();
   if (!data) return null;
 
@@ -39,6 +63,9 @@ const CurrentWeather = ({ data, unit }) => {
     unit === 'F' ? `${Math.round(data.windSpeed * 2.237)} mph` : `${Math.round(data.windSpeed * 3.6)} km/h`;
 
   const displayTemp = Math.round(unit === 'F' ? (data.temp * 9) / 5 + 32 : data.temp);
+  const feelsLike = data.feelsLike != null ? toDisplayTemp(data.feelsLike, unit) : null;
+  const hi = today?.tempMax != null ? toDisplayTemp(today.tempMax, unit) : null;
+  const lo = today?.tempMin != null ? toDisplayTemp(today.tempMin, unit) : null;
 
   const getLocalTime = () => {
     const d = new Date();
@@ -79,9 +106,22 @@ const CurrentWeather = ({ data, unit }) => {
         {displayTemp}°{unit}
       </h1>
 
-      <p style={{ fontSize: 'var(--text-lg)', marginBottom: '1.5rem', opacity: 0.9, textTransform: 'capitalize' }}>
+      <p style={{ fontSize: 'var(--text-lg)', marginBottom: '0.85rem', opacity: 0.9, textTransform: 'capitalize' }}>
         {data.description}
       </p>
+
+      <div className="current-hero-summary">
+        {feelsLike != null && (
+          <span className="current-hero-summary__item">
+            Feels like <strong>{feelsLike}°</strong>
+          </span>
+        )}
+        {hi != null && lo != null && (
+          <span className="current-hero-summary__item">
+            H <strong>{hi}°</strong> · L <strong>{lo}°</strong>
+          </span>
+        )}
+      </div>
 
       <div className="current-hero-metrics">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>

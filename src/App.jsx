@@ -9,7 +9,8 @@ import LocalGuide from './components/LocalGuide';
 import WeatherSkeleton from './components/WeatherSkeleton';
 import WeatherInsights from './components/WeatherInsights';
 import WeatherTips from './components/WeatherTips';
-import { getWeather, getForecast, getAirQuality, getOneCallHourly, getOneCallDaily, getMapTileUrl } from './services/weatherApi';
+import WeatherEffects from './components/WeatherEffects';
+import { getWeather, getForecast, getAirQuality, getOneCallHourly, getOneCallDaily, getMapTileUrl, reverseGeo } from './services/weatherApi';
 import { fetchNews, fetchAttractions } from './services/newsApi';
 
 const HourlyForecast = lazy(() => import('./components/HourlyForecast'));
@@ -60,6 +61,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [unit, setUnit] = useState('F');
+  const [locating, setLocating] = useState(false);
   const lastQueryRef = useRef('Bloomington, Illinois, US');
 
   const fetchWeatherData = useCallback(async (city) => {
@@ -136,6 +138,27 @@ function App() {
     }
   }, []);
 
+  const handleLocate = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const label = await reverseGeo(pos.coords.latitude, pos.coords.longitude);
+          if (label) await fetchWeatherData(label);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        // No coordinates are logged (location is sensitive per logging policy).
+        console.warn('Geolocation unavailable or permission denied');
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+  }, [fetchWeatherData]);
+
   useEffect(() => {
     fetchWeatherData('Bloomington, Illinois, US');
   }, [fetchWeatherData]);
@@ -160,8 +183,10 @@ function App() {
         }}
       />
 
+      <WeatherEffects condition={weather?.condition} />
+
       <div className="app-shell" data-surface={surface}>
-        <AppHeader onSearch={fetchWeatherData} unit={unit} onUnitChange={setUnit} />
+        <AppHeader onSearch={fetchWeatherData} onLocate={handleLocate} locating={locating} unit={unit} onUnitChange={setUnit} />
 
         <AnimatePresence mode="wait">
           {loading && <WeatherSkeleton key="sk" />}
@@ -219,7 +244,7 @@ function App() {
             </div>
 
             <div className="dash-weather">
-              <CurrentWeather data={weather} unit={unit} />
+              <CurrentWeather data={weather} unit={unit} today={dailyOneCall?.daily?.[0]} />
               <Suspense
                 fallback={
                   <div className="glass-panel--subtle hourly-dashboard hourly-dashboard--skeleton" aria-hidden>

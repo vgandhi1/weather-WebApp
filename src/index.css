@@ -189,6 +189,149 @@ body {
   color: rgba(26, 31, 46, 0.45);
 }
 
+/* Search wrapper + autocomplete */
+.search-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.search-locate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  margin-left: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-primary);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.search-locate:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.search-locate:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.search-locate--spin {
+  animation: search-locate-spin 0.9s linear infinite;
+}
+
+@keyframes search-locate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.search-suggest {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  padding: 0.35rem;
+  border-radius: var(--radius-sm);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.search-suggest__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.6rem;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.search-suggest__clear {
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+}
+
+.search-suggest__item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.search-suggest__item.is-active,
+.search-suggest__item:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.app-shell[data-surface='bright'] .search-suggest__item.is-active,
+.app-shell[data-surface='bright'] .search-suggest__item:hover {
+  background: rgba(26, 31, 46, 0.1);
+}
+
+/* —— Animated precipitation (behind dashboard) —— */
+.wx-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wx-fx .wx-particle {
+  position: absolute;
+  top: -10%;
+  will-change: transform, opacity;
+}
+
+.wx-fx--rain .wx-particle {
+  width: 1.5px;
+  height: 14px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5));
+  animation-name: wx-rain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.wx-fx--snow .wx-particle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  animation-name: wx-snow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes wx-rain {
+  0% { transform: translateY(-10vh); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(110vh); opacity: 0.4; }
+}
+
+@keyframes wx-snow {
+  0% { transform: translateY(-10vh) translateX(0); opacity: 0; }
+  10% { opacity: 0.9; }
+  100% { transform: translateY(110vh) translateX(var(--drift, 0)); opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wx-fx { display: none; }
+}
+
 /* —— Glass tiers —— */
 .glass-panel {
   background: var(--color-glass-bg);
@@ -1040,6 +1183,21 @@ a.feed-card:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.current-hero-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.current-hero-summary__item strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
 }
 
 .current-hero-metrics {

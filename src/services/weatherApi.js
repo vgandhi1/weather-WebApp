@@ -35,6 +35,80 @@ const getGeoLocation = async (query) => {
   };
 };
 
+/**
+ * City autocomplete via OpenWeather direct geocoding.
+ * Host is fixed (OWM); user input only fills the URL-encoded `q` query param,
+ * so this cannot be steered to an arbitrary destination (SSRF-safe).
+ * @param {string} query  Partial city name typed by the user
+ * @returns {Promise<Array<{name,state,country,lat,lon,label}>>}
+ */
+export const searchCities = async (query) => {
+  checkApiKey();
+  const q = (query || '').trim();
+  if (q.length < 2) return [];
+
+  let response;
+  try {
+    response = await fetch(
+      `${GEO_URL}/direct?q=${encodeURIComponent(q)}&limit=5&appid=${API_KEY}`
+    );
+  } catch {
+    return [];
+  }
+  if (!response.ok) return [];
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(data)) return [];
+
+  return data.map((c) => ({
+    name: c.name,
+    state: c.state,
+    country: c.country,
+    lat: c.lat,
+    lon: c.lon,
+    label: [c.name, c.state, c.country].filter(Boolean).join(', '),
+  }));
+};
+
+/**
+ * Reverse geocode validated coordinates into a searchable "City, State, Country" label.
+ * Coordinates come from the browser Geolocation API and are range-checked before use.
+ * @returns {Promise<string|null>}
+ */
+export const reverseGeo = async (lat, lon) => {
+  checkApiKey();
+  const la = Number(lat);
+  const lo = Number(lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  if (la < -90 || la > 90 || lo < -180 || lo > 180) return null;
+
+  let response;
+  try {
+    response = await fetch(
+      `${GEO_URL}/reverse?lat=${la}&lon=${lo}&limit=1&appid=${API_KEY}`
+    );
+  } catch {
+    return null;
+  }
+  if (!response.ok) return null;
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  const c = data[0];
+  return [c.name, c.state, c.country].filter(Boolean).join(', ') || null;
+};
+
 export const getWeather = async (query) => {
   checkApiKey();
 
@@ -262,15 +336,18 @@ export const getOneCallHourly = async (lat, lon) => {
   return { hourly };
 };
 
-// Helper to map OpenWeatherMap icon codes to our internal icon names
-const mapIcon = (code) => {
-  if (code === '01d') return 'sun';
-  if (code === '02d') return 'cloud-sun';
-  if (code === '03d' || code === '04d') return 'cloud';
-  if (code === '09d' || code === '10d') return 'cloud-rain';
-  if (code === '11d') return 'cloud-rain';
-  if (code === '13d') return 'cloud';
-  if (code === '50d') return 'cloud';
-  if (code.endsWith('n')) return 'cloud';
-  return 'cloud';
+// Helper to map OpenWeatherMap icon codes to our internal icon names.
+// Preserves day/night variants and distinct conditions (snow, storm, fog).
+const ICON_MAP = {
+  '01d': 'sun',        '01n': 'moon',
+  '02d': 'cloud-sun',  '02n': 'cloud-moon',
+  '03d': 'cloud',      '03n': 'cloud',
+  '04d': 'cloud',      '04n': 'cloud',
+  '09d': 'cloud-rain', '09n': 'cloud-rain',
+  '10d': 'cloud-rain', '10n': 'cloud-rain',
+  '11d': 'storm',      '11n': 'storm',
+  '13d': 'snow',       '13n': 'snow',
+  '50d': 'fog',        '50n': 'fog',
 };
+
+const mapIcon = (code) => ICON_MAP[code] || 'cloud';
